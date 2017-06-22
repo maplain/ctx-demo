@@ -11,12 +11,13 @@ import (
 	"context"
 )
 
-var timeoutLower, timeoutUpper, workerNum int
+var timeoutLower, timeoutUpper, workerNum, workerInitDelay int
 
 func init() {
 	flag.IntVar(&timeoutLower, "lo", 100, "lower limit of timeout value(millisecond)")
 	flag.IntVar(&timeoutUpper, "hi", 500, "upper limit of timeout value(millisecond)")
 	flag.IntVar(&workerNum, "wn", 5, "number of workers")
+	flag.IntVar(&workerInitDelay, "wd", 0, "delay of worker initialization")
 }
 
 // Results is an ordered list of search results.
@@ -54,8 +55,18 @@ func Search(ctx context.Context, query int) (Results, error) {
 
 	// fan out
 	var resultChans []<-chan Result
+OuterLoop:
 	for i := 0; i < workerNum; i++ {
 		fmt.Println("Generate worker", i)
+		// Before starting worker, check if job is cancelled
+		select {
+		case <-ctx.Done():
+			break OuterLoop
+		default:
+			if workerInitDelay != 0 {
+				time.Sleep(time.Millisecond * time.Duration(rand.Intn(workerInitDelay)))
+			}
+		}
 		resultChans = append(resultChans, processRequest(ctx, queue))
 	}
 
@@ -89,6 +100,7 @@ func Search(ctx context.Context, query int) (Results, error) {
 
 	wg.Wait()
 	return results, err
+	//	return results, nil
 }
 
 func genRequests(ctx context.Context, q int, errChan chan<- error) <-chan Request {
