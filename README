@@ -1,1 +1,14 @@
 This repo shows the common usage of golang/context and some concurrent patterns.
+
+In includes a server which will start a user specified number of workers to do
+its job. The whole thing is cancellable:
+
+1. The initiazliation of workers can be cancelled, if cancelled in the middle of
+initialization of all workers, the rest of them will not be initialized;
+2. The worker can be cancelled, if cancelled while processing, it'll drop its
+job immediately;
+
+What's more:
+1. any failure of any worker will cancel the whole job;
+2. our server will be able to return any partial finished results if failure
+appeared and some workers already successfully returned their part of results
