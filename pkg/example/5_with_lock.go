@@ -13,7 +13,7 @@ import (
 func main() {
 	var lock sync.Mutex
 	var a int
-	printer, closePrinter := printer.GetPrinter()
+	printer, closePrinter := printer.GetLoadBalancedPrinter(5)
 	go func() {
 		printer(fmt.Sprintf("current time %s", time.Now()))
 		time.Sleep(time.Second * 1)
