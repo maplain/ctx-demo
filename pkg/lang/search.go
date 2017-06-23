@@ -38,6 +38,7 @@ type Request struct {
 
 func Search(ctx context.Context, query int) (Results, error) {
 	var results Results
+
 	lang, ok := FromContext(ctx)
 	if ok {
 		results = append(results, Result{Language: string(lang), Number: numbers[lang][query-1]})
