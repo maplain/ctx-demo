@@ -47,6 +47,8 @@ func Search(ctx context.Context, query int) (Results, error) {
 
 	// errChan is used by downstream worker to notify us cancel the whole job
 	errChan := make(chan error, workerNum)
+	// It's very important to close this channel at the end of this function at which time
+	// all possible senders returned already thus closing is safe.
 	defer close(errChan)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
