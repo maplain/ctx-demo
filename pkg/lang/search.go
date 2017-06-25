@@ -47,9 +47,6 @@ func Search(ctx context.Context, query int) (Results, error) {
 
 	// errChan is used by downstream worker to notify us cancel the whole job
 	errChan := make(chan error, workerNum)
-	// It's very important to close this channel at the end of this function at which time
-	// all possible senders returned already thus closing is safe.
-	defer close(errChan)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -58,6 +55,14 @@ func Search(ctx context.Context, query int) (Results, error) {
 
 	// fan out
 	var resultChans []<-chan Result
+
+	var workerWg sync.WaitGroup
+	// It's very important to close this channel at the end of this function at which time
+	// all possible senders returned already thus closing is safe.
+	defer func() {
+		workerWg.Wait() // make sure channel is closed after all workers have returned
+		close(errChan)
+	}()
 OuterLoop:
 	for i := 0; i < workerNum; i++ {
 		fmt.Println("Generate worker", i)
@@ -70,7 +75,7 @@ OuterLoop:
 				time.Sleep(time.Millisecond * time.Duration(rand.Intn(workerInitDelay)))
 			}
 		}
-		resultChans = append(resultChans, processRequest(ctx, queue))
+		resultChans = append(resultChans, processRequest(ctx, queue, workerWg))
 	}
 
 	// fan in
@@ -121,9 +126,11 @@ func genRequests(ctx context.Context, q int, errChan chan<- error) <-chan Reques
 	return out
 }
 
-func processRequest(ctx context.Context, queue <-chan Request) <-chan Result {
+func processRequest(ctx context.Context, queue <-chan Request, wg sync.WaitGroup) <-chan Result {
 	out := make(chan Result)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(out)
 		for req := range queue {
 			select {
