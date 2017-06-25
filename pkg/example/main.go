@@ -23,8 +23,6 @@ func handleNumber(w http.ResponseWriter, req *http.Request) {
 		ctx    context.Context
 		cancel context.CancelFunc
 	)
-	done := make(chan struct{})
-	defer close(done)
 	timeout, err := time.ParseDuration(req.FormValue("timeout"))
 	if err == nil {
 		// The request has a timeout, so create a context that is
@@ -33,14 +31,6 @@ func handleNumber(w http.ResponseWriter, req *http.Request) {
 	} else {
 		ctx, cancel = context.WithCancel(context.Background())
 	}
-	go func() {
-		select {
-		case <-time.After(timeout):
-			cancel()
-		case <-done:
-			return
-		}
-	}()
 
 	// Check the search query.
 	query := req.FormValue("q")
